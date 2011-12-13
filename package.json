@@ -1,13 +1,14 @@
 {
-    "name": "fileparsers"
-  , "description": "utilities to get full (recursive) directory listing"
+    "name": "oghmerouteshelper"
+  , "description": "utilities to generate routes for OGHME express server from static directory"
   , "version": "0.0.1"
   , "author": "Peter Host"
-  , "repository": "git@github.com:peterhost/fileparsers.git"
-  , "main": "./fileparsers.js"
+  , "repository": "git@github.com:peterhost/oghmerouteshelper.git"
+  , "main": "./oghmerouteshelper.js"
   , "private": true
   , "dependencies": {
         "lloging": "git+ssh://git@github.com:peterhost/lloging.git"
+      , "fileparsers": "git+ssh://git@github.com:peterhost/fileparsers.git"
   }
   , "engine": "node >= 0.4.x"
 }

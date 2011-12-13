@@ -9,12 +9,11 @@
 /*
     TODO
 */
-require.paths.unshift('./'); //make the local modules accessible
 
 //var md = require('markdown');
 var fs = require('fs');
 var fp = require('fileparsers'); // custom
-var logger = require('loging'); // custom
+var logger = require('lloging'); // custom
 var llog = logger.make(); // create an independant logging instance for this module
 
 llog.on(); // enable logging for this lib
