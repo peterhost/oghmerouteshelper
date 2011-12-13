@@ -1,7 +1,7 @@
 {
     "name": "oghmerouteshelper"
   , "description": "utilities to generate routes for OGHME express server from static directory"
-  , "version": "0.0.1"
+  , "version": "0.0.2"
   , "author": "Peter Host"
   , "repository": "git@github.com:peterhost/oghmerouteshelper.git"
   , "main": "./oghmerouteshelper.js"
