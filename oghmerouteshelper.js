@@ -61,11 +61,11 @@ function typeOf(value) {
 //  ]
 //
 function routeList(path, extension) {
-  var artlist,
+  var itemList,
       i,
-      pathreg = new RegExp(path.replace(/([^\/])$/, '$1/') + '|\\.' + extension, 'g'),
       // pathreg removes : 1) initial DIR path from a string, 2) AND the `.extension` from the end of a string
       // the .replace part removes the trailing slash from `path` as slash will be the splitting delimiter
+      pathreg = new RegExp(path.replace(/([^\/])$/, '$1/') + '|\\.' + extension, 'g'),
       routes = []; // array of the different routes available in the category ARTICLE
 
   function mkroute(thisPath) {
@@ -96,14 +96,14 @@ function routeList(path, extension) {
   }
 
   // fetch the filelist
-  artlist = fp.rparsefSYNC(
+  itemList = fp.rparsefSYNC(
       path,
       fp.matcher(extension)
   );
 
   // extract the info
-  for (i = 0; i < artlist.length; i += 1) {
-    mkroute(artlist[i]);
+  for (i = 0; i < itemList.length; i += 1) {
+    mkroute(itemList[i]);
   }
 
   // stick 2 properties to the object
@@ -113,6 +113,61 @@ function routeList(path, extension) {
 }
 
 
+//    ignore: a valid regex object
+function routeList2 (path, extension, ignore) {
+  var itemList,
+      i,
+      // pathreg removes : 1) initial DIR path from a string, 2) AND the `.extension` from the end of a string
+      // the .replace part removes the trailing slash from `path` as slash will be the splitting delimiter
+      pathreg = new RegExp(path.replace(/([^\/])$/, '$1/') + '|\\.' + extension, 'g'),
+      routes = []; // array of the different routes available in the category ARTICLE
+
+  function mkroute(thisPath) {
+    var localURI = thisPath.replace(pathreg, ""),
+    tmparr = [],
+    tmpobj = {};
+    tmparr = localURI.split('/'); // split the path
+    tmpobj.file = tmparr.pop(); // the last element is the filename radical
+    if (tmparr.length > 0) { // the remaining of the array is the route
+        tmpobj.route = tmparr;
+    }
+    routes.push(tmpobj);
+  }
+
+  // only run for paths not in the ignore regexp
+  if (!ignore.test(path)) {
+    // valid dirpath ?
+    fs.stat(path, function (err, stat) {
+      if (err) {
+          throw err;
+      }
+      if (!stat.isDirectory())  {
+          throw new Error("ERROR : [" + path + "] is not a valid dirpath");
+      }
+    });
+
+    // valid file extension string ?
+    if (!extension || typeOf(extension) !== "string" || !/^\w+$/.test(extension)) {
+      throw "ERROR : invalid extension " + extension;
+    }
+
+    // fetch the filelist
+    itemList = fp.rparsefSYNC(
+        path,
+        fp.matcher(extension)
+    );
+
+    // extract the info
+    for (i = 0; i < itemList.length; i += 1) {
+      mkroute(itemList[i]);
+    }
+
+    // stick 2 properties to the object
+    routes.path = path;
+    routes.extension = extension;
+    return routes;
+  }
+}
 //_______________________________________________________________________
 //                           ROUTE SORTING
 //
@@ -281,3 +336,4 @@ function md_routeList(path) {
 
 exports.md_routeList = md_routeList;
 exports.routeList = routeList;
+exports.routeList2 = routeList2;
