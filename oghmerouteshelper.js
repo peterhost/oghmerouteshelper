@@ -1,4 +1,5 @@
 /*
+ ************************************************************************
  *
  *  NAME: customroutes.js
  *
@@ -6,12 +7,13 @@
  *  Copyright 2010 OGHME.COM. All rights reserved.
  *
  *
+ ************************************************************************
  */
 
 
-/*
-    TODO
-*/
+//_______________________________________________________________________
+//                             HELPERS
+//_______________________________________________________________________
 
 
 //var md = require('markdown');
@@ -20,10 +22,24 @@ var fp = require('fileparsers'); // custom
 var logger = require('lloging'); // custom
 var llog = logger.make(); // create an independant logging instance for this module
 
-llog.on(); // enable logging for this lib
 
-// better typeOf => for array detection
+function loginit(loglevel) {
+  if ( /normal|verbose|veryverbose/.test(loglevel) ) { llog.on(); }
+  if (loglevel ==='verbose' ) { fp.loginit('normal'); } // enable log on child module
+  if (loglevel ==='veryverbose' ) { fp.loginit('verbose'); } // enable verbose log on child module
+}
+
+//-----------------------------------------------------------------------
+//                            better TYPEOF
+//  NAME : typeOf
+//
+//  DESCRIPTION : esp. for array detection
+//
+//
 // SOURCE http://javascript.crockford.com/remedial.html
+//
+//-----------------------------------------------------------------------
+
 function typeOf(value) {
     var s = typeof value;
     if (s === 'object') {
@@ -43,24 +59,36 @@ function typeOf(value) {
 
 
 
-/*
- *-----------------------------------------------------------------------
- *                             GENERIC
- *-----------------------------------------------------------------------
- */
-
 //_______________________________________________________________________
+//                             ROUTING
+//_______________________________________________________________________
+
+//-----------------------------------------------------------------------
 //                            ROUTE LISTING
+//  NAME : routeList
 //
-//  returns a list containing all the routes to resources of one type (for the mo. file extension is the type)
-//  within a given path (directory, subdirectories,...)
+//  USAGE
+//    path:      valid path
+//    extension: filename extension
+//    ignore:    valid regex object
+
+//  DESCRIPTION : returns a list containing all the routes to resources of one
+//                type ('extension' parameter) within a given path (directory,
+//                subdirectories,...), ignoring any path which matches the
+//                oprional 'ignore' RegExp
+//
+//
 //  [
 //    {file: 'somearticle', route: [ 'tech', 'js']},
 //    {file: 'otherarticle', route: [ 'books']},
 //    {file: 'yetanotherarticle'},                           first level element, no route array
 //  ]
 //
-function routeList(path, extension) {
+//  DEPENDS: fileparsers.rparseSYNC
+//
+//-----------------------------------------------------------------------
+
+function routeList (path, extension, ignore) {
   var itemList,
       i,
       // pathreg removes : 1) initial DIR path from a string, 2) AND the `.extension` from the end of a string
@@ -95,10 +123,16 @@ function routeList(path, extension) {
     throw "ERROR : invalid extension " + extension;
   }
 
+  // valid regex (or undefined)
+  if ( (typeof ignore !== 'undefined') && !(ignore instanceof RegExp) ){
+    throw new Error('ERROR: not a valid regexp ' + ignore);
+  }
+
   // fetch the filelist
   itemList = fp.rparsefSYNC(
       path,
-      fp.matcher(extension)
+      fp.matcher(extension),
+      ignore
   );
 
   // extract the info
@@ -113,66 +147,18 @@ function routeList(path, extension) {
 }
 
 
-//    ignore: a valid regex object
-function routeList2 (path, extension, ignore) {
-  var itemList,
-      i,
-      // pathreg removes : 1) initial DIR path from a string, 2) AND the `.extension` from the end of a string
-      // the .replace part removes the trailing slash from `path` as slash will be the splitting delimiter
-      pathreg = new RegExp(path.replace(/([^\/])$/, '$1/') + '|\\.' + extension, 'g'),
-      routes = []; // array of the different routes available in the category ARTICLE
 
-  function mkroute(thisPath) {
-    var localURI = thisPath.replace(pathreg, ""),
-    tmparr = [],
-    tmpobj = {};
-    tmparr = localURI.split('/'); // split the path
-    tmpobj.file = tmparr.pop(); // the last element is the filename radical
-    if (tmparr.length > 0) { // the remaining of the array is the route
-        tmpobj.route = tmparr;
-    }
-    routes.push(tmpobj);
-  }
 
-  // only run for paths not in the ignore regexp
-  if (!ignore.test(path)) {
-    // valid dirpath ?
-    fs.stat(path, function (err, stat) {
-      if (err) {
-          throw err;
-      }
-      if (!stat.isDirectory())  {
-          throw new Error("ERROR : [" + path + "] is not a valid dirpath");
-      }
-    });
 
-    // valid file extension string ?
-    if (!extension || typeOf(extension) !== "string" || !/^\w+$/.test(extension)) {
-      throw "ERROR : invalid extension " + extension;
-    }
+//-----------------------------------------------------------------------
+//                         ROUTE TIDYING
 
-    // fetch the filelist
-    itemList = fp.rparsefSYNC(
-        path,
-        fp.matcher(extension)
-    );
 
-    // extract the info
-    for (i = 0; i < itemList.length; i += 1) {
-      mkroute(itemList[i]);
-    }
-
-    // stick 2 properties to the object
-    routes.path = path;
-    routes.extension = extension;
-    return routes;
-  }
-}
-//_______________________________________________________________________
-//                           ROUTE SORTING
+//-----------------------------------------
+//  NAME: sortTidiedRouteList
 //
-//  sortTidiedRouteList
-//  sort an array generated by tidyroutes()
+//  DESCRIPTION:  helper func for 'tidyRoutes'
+//                sort an array generated by tidyRoutes()
 function sortTidiedRouteList(a, b) {
     if (a.route < b.route) {
         return -1;
@@ -184,14 +170,11 @@ function sortTidiedRouteList(a, b) {
         return 0;
     }
 }
-//objs.sort(sortTidiedRouteList);
 
-
-//_______________________________________________________________________
-//                         ROUTE TIDYING
+//-----------------------------------------
+// NAME : tidyRoutes
 //
-// tidyroutes
-// orders a file-centric routes list obtained with routeList()
+// DESCRIPTION : orders a file-centric routes list obtained with routeList()
 // [
 //      { file: 'somearticle'   ,  route: [ 'tech', 'js']  },
 //      { file: 'somearticle2'  ,  route: [ 'tech', 'js']  },
@@ -205,7 +188,7 @@ function sortTidiedRouteList(a, b) {
 //      { route: '.'     , files: ['yetanotherarticle']           }         '.': top level route
 // ]
 //
-function tidyroutes(routes) {
+function tidyRoutes(routes) {
   var newroutes = [], i;
 
   // populate one entry of the new `newroutes` array
@@ -261,10 +244,18 @@ function tidyroutes(routes) {
 }
 
 
-//_______________________________________________________________________
-//                         METADATA
-//
+
+/*
+ *_______________________________________________________________________
+ *                         METADATA
+ *   TODO: DEPREC ?
+ *_______________________________________________________________________
+ *
+ */
+
+//-----------------------------------------------------------------------
 // getMeta (SYNC)
+//-----------------------------------------------------------------------
 function getMeta(basepath, route, file, ext) {
     var tmprt = route === '.' ? '' : route + '/',
         content = fs.readFileSync( basepath + '/' + tmprt + file + '.' + ext, 'utf8');
@@ -280,23 +271,26 @@ function getMeta(basepath, route, file, ext) {
 
 
 /*
- *-----------------------------------------------------------------------
+ *_______________________________________________________________________
  *                          HTML FUNCTIONS
- *-----------------------------------------------------------------------
+ *    TODO: DEPREC ?
+ *_______________________________________________________________________
  */
 
-//_______________________________________________________________________
+//-----------------------------------------------------------------------
 //                         GENERIC
 //
+//-----------------------------------------------------------------------
 // toHTMLtree
 //
 // returns a HTML tree representing a list of routes, from a 'tidied' route array
-// (cf. tidyroutes())
+// (cf. tidyRoutes())
 // [
 //      { route: 'tech/js'  , files: ['somearticle', 'somearticle2'] },         note: no trailing slash
 //      { route: 'books'    , files: ['otherarticle']                },
 //      { route: '.'     , files: ['yetanotherarticle']           }         '.': top level route
 // ]
+//-----------------------------------------------------------------------
 
 function toHTMLtree(tidyRoutes) {
     var route, indent, files, HTML = '\n<ul>', i, j, meta;
@@ -316,16 +310,17 @@ function toHTMLtree(tidyRoutes) {
     return HTML;
 }
 
-//_______________________________________________________________________
+//-----------------------------------------------------------------------
 //                         ARTICLES
-//
+//-----------------------------------------------------------------------
 // md_routeList
 //
 // returns a HTML index of 'markdown' files in a given directory
+//-----------------------------------------------------------------------
 function md_routeList(path) {
     var list = routeList(path, 'markdown');
     if (list) {
-        return toHTMLtree(tidyroutes(list));
+        return toHTMLtree(tidyRoutes(list));
     }
     return "<p>No documents were found</p>";
 }
@@ -333,7 +328,14 @@ function md_routeList(path) {
 
 
 
+//_______________________________________________________________________
+//                         EXPORTS
+//_______________________________________________________________________
+// Export the module's methods
 
+
+exports.loginit      = loginit;
 exports.md_routeList = md_routeList;
-exports.routeList = routeList;
-exports.routeList2 = routeList2;
+exports.routeList    = routeList;
+exports.tidyRoutes   = tidyRoutes;
+
